@@ -9,8 +9,13 @@
 #if OSG_GLES1_FEATURES
     #import <OpenGLES/ES1/glext.h>
 #else
-    #import <OpenGLES/ES2/glext.h>
-    #if defined(OSG_GLES3_FEATURES)
+
+    #define MUTLI_GLES (OSG_GLES2_FEATURES && OSG_GLES3_FEATURES)
+
+    #if OSG_GLES2_FEATURES || MUTLI_GLES
+        #import <OpenGLES/ES2/glext.h>
+    #endif
+    #if OSG_GLES3_FEATURES || MUTLI_GLES
         #import <OpenGLES/ES3/glext.h>
     #endif
 
@@ -38,6 +43,18 @@
     #define GL_STENCIL_ATTACHMENT_OES GL_STENCIL_ATTACHMENT
 
     #define GL_RGB5_A1_OES GL_RGB5_A1
+
+    #if OSG_GLES3_FEATURES && !MUTLI_GLES
+        #define glRenderbufferStorageMultisampleAPPLE glRenderbufferStorageMultisample
+        #define glDiscardFramebufferEXT glInvalidateFramebuffer
+        //#define glResolveMultisampleFramebufferAPPLE glResolveMultisampleFramebuffer
+
+        #define GL_DEPTH24_STENCIL8_OES GL_DEPTH24_STENCIL8
+        #define GL_DEPTH_COMPONENT24_OES GL_DEPTH_COMPONENT24
+        #define GL_READ_FRAMEBUFFER_APPLE GL_READ_FRAMEBUFFER
+        #define GL_DRAW_FRAMEBUFFER_APPLE GL_DRAW_FRAMEBUFFER
+    #endif
+
 #endif
 
 #include "IOSUtils.h"
@@ -513,11 +530,13 @@ typedef std::map<void*, unsigned int> TouchPointsIdMapping;
 
         glBindFramebufferOES(GL_READ_FRAMEBUFFER_APPLE, _msaaFramebuffer);
         glBindFramebufferOES(GL_DRAW_FRAMEBUFFER_APPLE, _viewFramebuffer);
-
-        glResolveMultisampleFramebufferAPPLE();
-
+    
         GLenum attachments[] = {GL_DEPTH_ATTACHMENT_OES, GL_COLOR_ATTACHMENT0_OES};
-    #ifdef OSG_GLES3_FEATURES
+
+#if !OSG_GLES3_FEATURES
+        glResolveMultisampleFramebufferAPPLE();
+        glDiscardFramebufferEXT(GL_READ_FRAMEBUFFER_APPLE, 2, attachments);
+#else
         switch ([_context API])
         {
             case kEAGLRenderingAPIOpenGLES3:
@@ -528,16 +547,15 @@ typedef std::map<void*, unsigned int> TouchPointsIdMapping;
                 break;
 
             default:
+            #if !OSG_GLES3_FEATURES
                 glResolveMultisampleFramebufferAPPLE();
+            #endif
                 glDiscardFramebufferEXT(GL_READ_FRAMEBUFFER_APPLE, 2, attachments);
                 break;
         }
-    #else
-        glDiscardFramebufferEXT(GL_READ_FRAMEBUFFER_APPLE, 2, attachments);
-    #endif
+#endif
     }
 #endif
-
 
       //swap buffers (sort of i think?)
     glBindRenderbufferOES(GL_RENDERBUFFER_OES, _viewRenderbuffer);
@@ -868,7 +886,7 @@ bool GraphicsWindowIOS::realizeImplementation()
 
         OSG_DEBUG << "GraphicsWindowIOS::realizeImplementation: INFO: Created UIWindow with bounds '" << window_bounds.size.width << ", " << window_bounds.size.height << "' (points)." << std::endl;
 
-        //if the user has requested a differnet screenNum from default 0 get the UIScreen object and
+        //if the user has requested a different screenNum from default 0 get the UIScreen object and
         //apply to our window (this is for IPad external screens, I don't have one, so I've no idea if it works)
         //I'm also not sure if we should apply this to external windows also?
         if(_traits->screenNum > 0 && screen != nil)
@@ -881,12 +899,16 @@ bool GraphicsWindowIOS::realizeImplementation()
 #if OSG_GLES1_FEATURES
     _context = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES1];
 #elif OSG_GLES2_FEATURES
-    #if OSG_GLES3_FEATURES
-        _context = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES3];
-    #endif
 
-    if (!_context)
+    #if MULTI_GLES
+        _context = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES3];
+        if(!_context) _context = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES2];
+    #else
         _context = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES2];
+    #endif
+    
+#elif OSG_GLES3_FEATURES
+    _context = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES3];
 #endif
 
     if (!_context || ![EAGLContext setCurrentContext:_context]) {
@@ -894,11 +916,9 @@ bool GraphicsWindowIOS::realizeImplementation()
         #if OSG_GLES1_FEATURES
         OSG_FATAL << "GraphicsWindowIOS::realizeImplementation: ERROR: Failed to create a valid OpenGLES1 context" << std::endl;
         #elif OSG_GLES2_FEATURES
-            #if OSG_GLES3_FEATURES
-        OSG_FATAL << "GraphicsWindowIOS::realizeImplementation: ERROR: Failed to create a valid OpenGLES3 or OpenGLES2 context" << std::endl;
-            #else
-        OSG_FATAL << "GraphicsWindowIOS::realizeImplementation: ERROR: Failed to create a valid OpenGLES2 context" << std::endl;
-            #endif
+        OSG_FATAL << "GraphicsWindowIOS::realizeImplementation: ERROR: Failed to create a valid OpenGLES2" << std::endl;
+        #elif OSG_GLES3_FEATURES
+        OSG_FATAL << "GraphicsWindowIOS::realizeImplementation: ERROR: Failed to create a valid OpenGLES3 context" << std::endl;
         #endif
         return false;
     }

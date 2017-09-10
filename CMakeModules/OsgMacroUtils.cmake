@@ -44,7 +44,7 @@ MACRO(LINK_WITH_VARIABLES TRGTNAME)
                 TARGET_LINK_LIBRARIES(${TRGTNAME} optimized "${${varname}}" debug "${${varname}_DEBUG}")
             ENDIF(${varname}_RELEASE)
         ELSE(${varname}_DEBUG)
-            TARGET_LINK_LIBRARIES(${TRGTNAME} "${${varname}}" )
+            TARGET_LINK_LIBRARIES(${TRGTNAME} ${${varname}} )
         ENDIF(${varname}_DEBUG)
     ENDFOREACH(varname)
 ENDMACRO(LINK_WITH_VARIABLES TRGTNAME)
@@ -122,9 +122,9 @@ MACRO(SETUP_LINK_LIBRARIES)
     FOREACH(LINKLIB ${TARGET_ADDED_LIBRARIES})
       SET(TO_INSERT TRUE)
       FOREACH (value ${TARGET_COMMON_LIBRARIES})
-            IF (${value} STREQUAL ${LINKLIB})
+            IF ("${value}" STREQUAL "${LINKLIB}")
                   SET(TO_INSERT FALSE)
-            ENDIF (${value} STREQUAL ${LINKLIB})
+            ENDIF ("${value}" STREQUAL "${LINKLIB}")
         ENDFOREACH (value ${TARGET_COMMON_LIBRARIES})
       IF(TO_INSERT)
           LIST(APPEND TARGET_LIBRARIES ${LINKLIB})
@@ -266,6 +266,23 @@ MACRO(SETUP_PLUGIN PLUGIN_NAME)
     ## plugins gets put in libopenscenegraph by default
     IF(${ARGC} GREATER 1)
       SET(PACKAGE_COMPONENT libopenscenegraph-${ARGV1})
+
+      # add cpack config variables for plugin with own package
+      IF(BUILD_OSG_PACKAGES)
+        IF("${CPACK_GENERATOR}" STREQUAL "DEB")
+            STRING(TOUPPER ${PACKAGE_COMPONENT} UPPER_PACKAGE_COMPONENT)
+            SET(CPACK_${UPPER_PACKAGE_COMPONENT}_DEPENDENCIES
+                "libopenscenegraph"
+                CACHE STRING
+                "Dependend packages for the ${PACKAGE_COMPONENT} package with all components (uses deb dependecy format), e.g., 'libc6, libcurl3-gnutls, libgif4, libjpeg8, libpng12-0'"
+            )
+            SET(CPACK_${UPPER_PACKAGE_COMPONENT}_CONFLICTS
+                ""
+                CACHE STRING
+                "Conflicting packages for the ${PACKAGE_COMPONENT} package (uses deb dependecy format), e.g., 'libc6, libcurl3-gnutls, libgif4, libjpeg8, libpng12-0'"
+            )
+        ENDIF()
+      ENDIF()
     ELSE(${ARGC} GREATER 1)
       SET(PACKAGE_COMPONENT libopenscenegraph)
     ENDIF(${ARGC} GREATER 1)
@@ -325,10 +342,10 @@ MACRO(SETUP_PLUGIN PLUGIN_NAME)
             RUNTIME DESTINATION bin COMPONENT ${PACKAGE_COMPONENT}
             ARCHIVE DESTINATION lib/${OSG_PLUGINS} COMPONENT libopenscenegraph-dev
             LIBRARY DESTINATION bin/${OSG_PLUGINS} COMPONENT ${PACKAGE_COMPONENT})
-        IF(MSVC)
+        IF(MSVC AND DYNAMIC_OPENSCENEGRAPH)
             INSTALL(FILES ${OUTPUT_BINDIR}/${OSG_PLUGINS}/${TARGET_TARGETNAME}${CMAKE_RELWITHDEBINFO_POSTFIX}.pdb DESTINATION bin/${OSG_PLUGINS} COMPONENT ${PACKAGE_COMPONENT} CONFIGURATIONS RelWithDebInfo)
             INSTALL(FILES ${OUTPUT_BINDIR}/${OSG_PLUGINS}/${TARGET_TARGETNAME}${CMAKE_DEBUG_POSTFIX}.pdb DESTINATION bin/${OSG_PLUGINS} COMPONENT ${PACKAGE_COMPONENT} CONFIGURATIONS Debug)
-        ENDIF(MSVC)
+        ENDIF(MSVC AND DYNAMIC_OPENSCENEGRAPH)
     ELSE(WIN32)
         INSTALL(TARGETS ${TARGET_TARGETNAME}
             RUNTIME DESTINATION bin COMPONENT ${PACKAGE_COMPONENT}
@@ -344,7 +361,7 @@ ENDMACRO(SETUP_PLUGIN)
 
 MACRO(SETUP_EXE IS_COMMANDLINE_APP)
     #MESSAGE("in -->SETUP_EXE<-- ${TARGET_NAME}-->${TARGET_SRC} <--> ${TARGET_H}<--")
-    IF(GL3_FOUND)
+    IF(GLCORE_FOUND)
         INCLUDE_DIRECTORIES( ${GLCORE_INCLUDE_DIR} )
     ENDIF()
 

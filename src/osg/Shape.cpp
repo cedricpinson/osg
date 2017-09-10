@@ -243,7 +243,61 @@ void BuildShapeGeometryVisitor::End()
 {
     if (_start_index>=_vertices->size()) return;
 
-    _geometry->addPrimitiveSet(new DrawArrays(_mode, _start_index, _vertices->size()-_start_index));
+    bool smallPrimitiveSet = _vertices->size() < 65536;
+
+    // OSG_NOTICE<<"BuildShapeGeometryVisitor::End() smallPrimitiveSet = "<<smallPrimitiveSet<<std::endl;
+    if (_mode==GL_QUADS)
+    {
+        osg::ref_ptr<osg::DrawElements> primitives = smallPrimitiveSet ?
+            static_cast<osg::DrawElements*>(new osg::DrawElementsUShort(GL_TRIANGLES)) :
+            static_cast<osg::DrawElements*>(new osg::DrawElementsUInt(GL_TRIANGLES));
+
+        _geometry->addPrimitiveSet(primitives.get());
+
+        for(unsigned int i=_start_index; i<_vertices->size(); i+=4)
+        {
+            unsigned int p0 = i;
+            unsigned int p1 = i+1;
+            unsigned int p2 = i+2;
+            unsigned int p3 = i+3;
+
+            primitives->addElement(p0);
+            primitives->addElement(p1);
+            primitives->addElement(p3);
+
+            primitives->addElement(p1);
+            primitives->addElement(p2);
+            primitives->addElement(p3);
+        }
+    }
+    else if (_mode==GL_QUAD_STRIP)
+    {
+        osg::ref_ptr<osg::DrawElements> primitives = smallPrimitiveSet ?
+            static_cast<osg::DrawElements*>(new osg::DrawElementsUShort(GL_TRIANGLES)) :
+            static_cast<osg::DrawElements*>(new osg::DrawElementsUInt(GL_TRIANGLES));
+
+        _geometry->addPrimitiveSet(primitives.get());
+
+        for(unsigned int i=_start_index; i<_vertices->size()-2; i+=2)
+        {
+            unsigned int p0 = i;
+            unsigned int p1 = i+1;
+            unsigned int p2 = i+2;
+            unsigned int p3 = i+3;
+
+            primitives->addElement(p0);
+            primitives->addElement(p1);
+            primitives->addElement(p2);
+
+            primitives->addElement(p1);
+            primitives->addElement(p3);
+            primitives->addElement(p2);
+        }
+    }
+    else
+    {
+        _geometry->addPrimitiveSet(new DrawArrays(_mode, _start_index, _vertices->size()-_start_index));
+    }
 
     for(unsigned int i=_start_index; i<_vertices->size(); ++i)
     {

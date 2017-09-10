@@ -20,6 +20,7 @@ ELSE(ANDROID)
 
 IF(DYNAMIC_OPENSCENEGRAPH)
 
+    ADD_SUBDIRECTORY(osgsimpleMDI)
     ADD_SUBDIRECTORY(osg2cpp)
     ADD_SUBDIRECTORY(osganalysis)
     ADD_SUBDIRECTORY(osganimate)
@@ -166,10 +167,9 @@ IF(DYNAMIC_OPENSCENEGRAPH)
     ADD_SUBDIRECTORY(osgwidgettable)
     ADD_SUBDIRECTORY(osgwidgetwindow)
     ADD_SUBDIRECTORY(osguserdata)
-
     # GL3/GL4 example
     ADD_SUBDIRECTORY(osgsimplegl3)
-
+    ADD_SUBDIRECTORY(osgbindlesstext)
     IF(OSG_CPP_EXCEPTIONS_AVAILABLE)
         ADD_SUBDIRECTORY(osgunittests)
         ADD_SUBDIRECTORY(osgmemorytest)

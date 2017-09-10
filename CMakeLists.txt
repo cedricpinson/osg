@@ -70,11 +70,11 @@ IF(APPLE AND NOT ANDROID)
       ENDIF()
 
     ELSE()
-      #simulator uses i386 architectures
-      SET(CMAKE_OSX_ARCHITECTURES "i386" CACHE STRING "Build architectures for iOS Simulator" FORCE)
+      #simulator uses i386 and x86_64 architectures
+      SET(CMAKE_OSX_ARCHITECTURES "i386;x86_64" CACHE STRING "Build architectures for iOS Simulator" FORCE)
     ENDIF()
 
-    #here we set the specific iphone sdk version. We can only set either device or simulator sdk. So if you want both you currently have to have two seperate projects
+    #here we set the specific iphone sdk version. We can only set either device or simulator sdk. So if you want both you currently have to have two separate projects
     SET(CMAKE_OSX_SYSROOT "${IPHONE_SDKROOT}" CACHE STRING "System root for iOS" FORCE)
 
   ELSE()
@@ -115,8 +115,8 @@ PROJECT(OpenSceneGraph)
 
 SET(OPENSCENEGRAPH_MAJOR_VERSION 3)
 SET(OPENSCENEGRAPH_MINOR_VERSION 5)
-SET(OPENSCENEGRAPH_PATCH_VERSION 6)
-SET(OPENSCENEGRAPH_SOVERSION 146)
+SET(OPENSCENEGRAPH_PATCH_VERSION 7)
+SET(OPENSCENEGRAPH_SOVERSION 150)
 
 # set to 0 when not a release candidate, non zero means that any generated
 # git tags will be treated as release candidates of given number
@@ -232,15 +232,15 @@ IF(NOT ANDROID)
 IF(APPLE)
     # Trying to get CMake to generate an XCode IPhone project, current efforts are to get iphoneos sdk 3.1 working
     # Added option which needs manually setting to select the IPhone SDK for building. We can only have one of the below
-    # set to true. Should realy have an OSG_BUILD_PLATFORM variable that we set to our desired platform
+    # set to true. Should really have an OSG_BUILD_PLATFORM variable that we set to our desired platform
     OPTION(OSG_BUILD_PLATFORM_IPHONE "Enable IPhoneSDK Device support" OFF)
     OPTION(OSG_BUILD_PLATFORM_IPHONE_SIMULATOR "Enable IPhoneSDK Simulator support" OFF)
 
     IF(OSG_BUILD_PLATFORM_IPHONE OR OSG_BUILD_PLATFORM_IPHONE_SIMULATOR)
 
         #you need to manually set the default sdk version here
-        SET (IPHONE_SDKVER "6.0" CACHE STRING "IOS SDK-Version")
-        SET (IPHONE_VERSION_MIN "4.2" CACHE STRING "IOS minimum os version, use 7.0 or greater to get 64bit support")
+        SET (IPHONE_SDKVER "10.2" CACHE STRING "IOS SDK-Version")
+        SET (IPHONE_VERSION_MIN "7.0" CACHE STRING "IOS minimum os version, use 7.0 or greater to get 64bit support")
 
         #the below is taken from ogre, it states the gcc stuff needs to happen before PROJECT() is called. I've no clue if we even need it
         # Force gcc <= 4.2 on iPhone
@@ -442,6 +442,8 @@ ENDIF(WIN32 AND NOT ANDROID)
 
 OPTION(OSG_NOTIFY_DISABLED "Set to ON to build OpenSceneGraph with the notify() disabled." OFF)
 
+OPTION(OSG_USE_DEPRECATED_API "Set to ON to build OpenSceneGraph with the OSG_USE_DEPREFATED_API #define enabled to allow access to deprecated APIs ." ON)
+
 OPTION(OSG_USE_FLOAT_MATRIX "Set to ON to build OpenSceneGraph with float Matrix instead of double." OFF)
 MARK_AS_ADVANCED(OSG_USE_FLOAT_MATRIX)
 
@@ -499,6 +501,8 @@ ENDIF()
 IF ((OPENGL_PROFILE STREQUAL "GLES2"))
     OPTION(OSG_GLES2_AVAILABLE "Set to OFF to disable use of OpenGL ES 2.x functions library." ON )
 ELSEIF ((OPENGL_PROFILE STREQUAL "GLES3"))
+    OPTION(OSG_GLES3_AVAILABLE "Set to OFF to disable use of OpenGL ES 3.x functions library." ON )
+ELSEIF ((OPENGL_PROFILE STREQUAL "GLES2+GLES3"))
     OPTION(OSG_GLES2_AVAILABLE "Set to OFF to disable use of OpenGL ES 2.x functions library." ON )
     OPTION(OSG_GLES3_AVAILABLE "Set to OFF to disable use of OpenGL ES 3.x functions library." ON )
 ELSE()
@@ -510,7 +514,7 @@ ENDIF()
 OPTION(OSG_GL_LIBRARY_STATIC "Set to ON to statically link with OpenGL/GLES library." OFF)
 
 # Map the OSG_GL*_AVAILABLE settings to OSG_GL_* settings
-IF (OSG_GLES2_AVAILABLE OR OSG_GL3_AVAILABLE)
+IF (OSG_GLES2_AVAILABLE OR OSG_GLES3_AVAILABLE OR OSG_GL3_AVAILABLE)
     OPTION(OSG_GL_DISPLAYLISTS_AVAILABLE "Set to OFF to disable use of OpenGL display lists." OFF)
     OPTION(OSG_GL_MATRICES_AVAILABLE "Set to OFF to disable use of OpenGL built-in matrices." OFF)
     OPTION(OSG_GL_VERTEX_FUNCS_AVAILABLE "Set to OFF to disable use of OpenGL vertex functions such as glVertex/glColor etc." OFF)
@@ -530,7 +534,7 @@ ELSE()
     OPTION(OSG_GL_FIXED_FUNCTION_AVAILABLE "Set to OFF to disable use of OpenGL fixed function pipeline." ON)
 ENDIF()
 
-IF (OSG_GLES1_AVAILABLE OR OSG_GLES2_AVAILABLE)
+IF (OSG_GLES1_AVAILABLE OR OSG_GLES2_AVAILABLE OR OSG_GLES3_AVAILABLE)
     OPTION(OSG_CPP_EXCEPTIONS_AVAILABLE "Set to OFF to disable compile of OSG components that use C++ exceptions." OFF)
 ELSE()
     OPTION(OSG_CPP_EXCEPTIONS_AVAILABLE "Set to OFF to disable compile of OSG components that use C++ exceptions." ON)
@@ -568,11 +572,17 @@ ELSEIF(OSG_GLES2_AVAILABLE)
     IF (APPLE AND NOT ANDROID)
         SET(OPENGL_HEADER1 "#include \"TargetConditionals.h\"" CACHE STRING "#include<> line for OpenGL Header")
         SET(OPENGL_HEADER2 "#include <OpenGLES/ES2/gl.h>" CACHE STRING "#include<> line for additional OpenGL Headers if required")
-        # TODO: GLES3
     ELSE()
         SET(OPENGL_HEADER1 "#include <GLES2/gl2.h>" CACHE STRING "#include<> line for OpenGL Header")
         SET(OPENGL_HEADER2 "" CACHE STRING "#include<> line for additional OpenGL Headers if required")
-        # TODO: GLES3
+    ENDIF()
+ELSEIF(OSG_GLES3_AVAILABLE)
+    IF (APPLE AND NOT ANDROID)
+        SET(OPENGL_HEADER1 "#include \"TargetConditionals.h\"" CACHE STRING "#include<> line for OpenGL Header")
+        SET(OPENGL_HEADER2 "#include <OpenGLES/ES3/gl.h>" CACHE STRING "#include<> line for additional OpenGL Headers if required")
+    ELSE()
+        SET(OPENGL_HEADER1 "#include <GLES3/gl3.h>" CACHE STRING "#include<> line for OpenGL Header")
+        SET(OPENGL_HEADER2 "" CACHE STRING "#include<> line for additional OpenGL Headers if required")
     ENDIF()
 ELSE()
     IF (APPLE)
@@ -585,39 +595,39 @@ ELSE()
 ENDIF()
 
 IF (OSG_GL1_AVAILABLE)
-    SET(OSG_GL1_FEATURES "true")
+    SET(OSG_GL1_FEATURES 1)
 ELSE()
-    SET(OSG_GL1_FEATURES "false")
+    SET(OSG_GL1_FEATURES 0)
 ENDIF()
 
 IF (OSG_GL2_AVAILABLE)
-    SET(OSG_GL2_FEATURES "true")
+    SET(OSG_GL2_FEATURES 1)
 ELSE()
-    SET(OSG_GL2_FEATURES "false")
+    SET(OSG_GL2_FEATURES 0)
 ENDIF()
 
 IF (OSG_GL3_AVAILABLE)
-    SET(OSG_GL3_FEATURES "true")
+    SET(OSG_GL3_FEATURES 1)
 ELSE()
-    SET(OSG_GL3_FEATURES "false")
+    SET(OSG_GL3_FEATURES 0)
 ENDIF()
 
 IF (OSG_GLES1_AVAILABLE)
-    SET(OSG_GLES1_FEATURES "true")
+    SET(OSG_GLES1_FEATURES 1)
 ELSE()
-    SET(OSG_GLES1_FEATURES "false")
+    SET(OSG_GLES1_FEATURES 0)
 ENDIF()
 
 IF (OSG_GLES2_AVAILABLE)
-    SET(OSG_GLES2_FEATURES "true")
+    SET(OSG_GLES2_FEATURES 1)
 ELSE()
-    SET(OSG_GLES2_FEATURES "false")
+    SET(OSG_GLES2_FEATURES 0)
 ENDIF()
 
 IF (OSG_GLES3_AVAILABLE)
-    SET(OSG_GLES3_FEATURES "true")
+    SET(OSG_GLES3_FEATURES 1)
 ELSE()
-    SET(OSG_GLES3_FEATURES "false")
+    SET(OSG_GLES3_FEATURES 0)
 ENDIF()
 
 IF(ANDROID)
@@ -633,6 +643,13 @@ IF(ANDROID)
               PATHS
               ${ANDROID_SYSROOT}/usr/include)
         FIND_LIBRARY(OPENGL_gl_LIBRARY  GLESv2
+                 PATHS
+                     ${ANDROID_SYSROOT}/usr/lib)
+    ELSEIF(OSG_GLES3_AVAILABLE)
+        FIND_PATH(OPENGL_INCLUDE_DIR GLES3/gl3.h
+              PATHS
+              ${ANDROID_SYSROOT}/usr/include)
+        FIND_LIBRARY(OPENGL_gl_LIBRARY  GLESv3
                  PATHS
                      ${ANDROID_SYSROOT}/usr/lib)
     ENDIF()
@@ -700,6 +717,9 @@ OPTION(BUILD_OSG_APPLICATIONS "Enable to build OSG Applications (e.g. osgviewer)
 # OSG Examples
 OPTION(BUILD_OSG_EXAMPLES "Enable to build OSG Examples" OFF)
 
+# OSG Plugins disable option for apple build on travis ci test - full build job runs over time limit of 50 min.
+OPTION(BUILD_OSG_PLUGINS "Build OSG Plugins - Disable for compile testing examples on a time limit" ON)
+mark_as_advanced(BUILD_OSG_PLUGINS)
 ################################################################################
 # 3rd Party Dependency Stuff
 IF(WIN32 AND NOT ANDROID)
@@ -731,7 +751,7 @@ ELSE()
     FIND_PACKAGE(GTA)
     FIND_PACKAGE(CURL)
     FIND_PACKAGE(LibVNCServer)
-    FIND_PACKAGE(OurDCMTK)
+    FIND_PACKAGE(DCMTK)
     FIND_PACKAGE(FFmpeg)
     FIND_PACKAGE(GStreamer COMPONENTS app pbutils)
     FIND_PACKAGE(GLIB COMPONENTS gobject)
@@ -831,6 +851,17 @@ SET(CMAKE_RELEASE_POSTFIX "" CACHE STRING "add a postfix, usually empty on windo
 SET(CMAKE_RELWITHDEBINFO_POSTFIX "rd" CACHE STRING "add a postfix, usually empty on windows")
 SET(CMAKE_MINSIZEREL_POSTFIX "s" CACHE STRING "add a postfix, usually empty on windows")
 
+# Correct any incorrect case usage in CMAKE_BUILD_TYPE
+IF     (CMAKE_BUILD_TYPE MATCHES "release" OR CMAKE_BUILD_TYPE MATCHES "RELEASE")
+    SET(CMAKE_BUILD_TYPE "Release")
+ELSEIF (CMAKE_BUILD_TYPE MATCHES "minsizerel" OR CMAKE_BUILD_TYPE MATCHES "MINSIZEREL")
+    SET(CMAKE_BUILD_TYPE "MinSizeRel")
+ELSEIF (CMAKE_BUILD_TYPE MATCHES "relwithdebinfo" OR CMAKE_BUILD_TYPE MATCHES "RELWITHDEBINFO")
+    SET(CMAKE_BUILD_TYPE "RelWithDebInfo")
+ELSEIF (CMAKE_BUILD_TYPE MATCHES "debug" OR CMAKE_BUILD_TYPE MATCHES "DEBUG")
+    SET(CMAKE_BUILD_TYPE "Debug")
+ENDIF()
+
 # Set the build postfix extension according to what configuration is being built.
 IF (CMAKE_BUILD_TYPE MATCHES "Release")
     SET(CMAKE_BUILD_POSTFIX "${CMAKE_RELEASE_POSTFIX}")
@@ -864,7 +895,7 @@ IF(NOT DEFINED LIB_POSTFIX)
     SET(LIB_POSTFIX "")
 ENDIF()
 
-# Here we apparantly do some funky stuff with making the bin/ and lib/
+# Here we apparently do some funky stuff with making the bin/ and lib/
 # folders which is probably needed to work around a very old CMake bug?
 
 #SET(OUTPUT_BINDIR ${PROJECT_BINARY_DIR}/bin/${CMAKE_SYSTEM_NAME})
@@ -1037,7 +1068,7 @@ IF(OSG_AGGRESSIVE_WARNING_FLAGS)
             ENDIF()
         ENDFOREACH()
     ELSE()
-        # Remove all flags considered aggresive
+        # Remove all flags considered aggressive
         FOREACH(flag ${OSG_AGGRESSIVE_WARNING_FLAGS})
             STRING(REGEX REPLACE "${flag}" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
         ENDFOREACH()
@@ -1084,15 +1115,15 @@ IF(APPLE AND NOT ANDROID)
             SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -miphoneos-version-min=${IPHONE_VERSION_MIN}" FORCE)
 
         ELSE()
-            #simulator uses i386 architectures
-            SET(CMAKE_OSX_ARCHITECTURES "i386" CACHE STRING "Build architectures for iOS Simulator" FORCE)
-            SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mno-thumb -arch i386 -pipe -no-cpp-precomp" CACHE STRING "Flags used by the compiler during all build types." FORCE)
+            #simulator uses i386 and x86_64 architectures
+            SET(CMAKE_OSX_ARCHITECTURES "i386;x86_64" CACHE STRING "Build architectures for iOS Simulator" FORCE)
+            SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mno-thumb -pipe -no-cpp-precomp" CACHE STRING "Flags used by the compiler during all build types." FORCE)
 
             SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mios-simulator-version-min=${IPHONE_VERSION_MIN}" FORCE)
 
         ENDIF()
 
-        #here we set the specific iphone sdk version. We can only set either device or simulator sdk. So if you want both you currently have to have two seperate projects
+        #here we set the specific iphone sdk version. We can only set either device or simulator sdk. So if you want both you currently have to have two separate projects
         SET(CMAKE_OSX_SYSROOT "${IPHONE_SDKROOT}" CACHE STRING "System root for iOS" FORCE)
 
         #hack, force link to opengles

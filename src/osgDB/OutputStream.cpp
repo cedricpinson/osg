@@ -456,7 +456,7 @@ void OutputStream::writeImage( const osg::Image* img )
         default:
             if ( img->getWriteHint()==osg::Image::EXTERNAL_FILE )
                 decision = IMAGE_EXTERNAL;
-            else if ( isBinary() )
+            else
                 decision = IMAGE_INLINE_DATA;
             break;
         }
@@ -705,6 +705,8 @@ void OutputStream::start( OutputIterator* outIterator, OutputStream::WriteType t
     if ( !_out )
         throwException( "OutputStream: Null stream specified." );
     if ( getException() ) return;
+
+    _out->setOutputStream(this);
 
     if ( isBinary() )
     {

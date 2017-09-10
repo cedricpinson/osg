@@ -12,6 +12,8 @@ matrix:
       dist: trusty
       language: cpp
       env:
+         # - CMAKECMD_ARGS="-DBUILD_OSG_EXAMPLES=ON -DBUILD_OSG_PLUGINS_BY_DEFAULT=ON -DBUILD_OSG_APPLICATIONS=ON"
+          - CMAKECMD_ARGS="-DBUILD_OSG_EXAMPLES=OFF -DBUILD_OSG_PLUGINS_BY_DEFAULT=ON -DBUILD_OSG_APPLICATIONS=ON"
          #- LLVM_VERSION=3.8
       sudo: false
       cache:
@@ -27,7 +29,7 @@ matrix:
             name: "openscenegraph/OpenSceneGraph"
             description: "OpenSceneGraph build"
           notification_email: robert@openscenegraph.com
-          build_command_prepend: "cmake -DCMAKE_BUILD_TYPE=Release ."
+          build_command_prepend: "cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_OSG_DEPRECATED_SERIALIZERS=OFF ."
           build_command:   "make -j 3"
           branch_pattern: coverity_scan
         apt:
@@ -42,6 +44,12 @@ matrix:
     # OSX build
     - os: osx
       language: cpp
+      env:
+         - CMAKECMD_ARGS="-DBUILD_OSG_EXAMPLES=OFF -DBUILD_OSG_PLUGINS_BY_DEFAULT=ON -DBUILD_OSG_APPLICATIONS=ON"
+    - os: osx
+      language: cpp
+      env:
+         - CMAKECMD_ARGS="-DBUILD_OSG_EXAMPLES=ON -DBUILD_OSG_PLUGINS_BY_DEFAULT=OFF -DBUILD_OSG_APPLICATIONS=OFF"
 
 # script:
 #    - mkdir build
@@ -50,4 +58,5 @@ matrix:
 #    - make install -j 3
 
 script:
-    - if [ "${COVERITY_SCAN_BRANCH}" != 1 ]; then mkdir build && cd build && travis_wait 60 cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../product -DBUILD_OSG_EXAMPLES=ON ../ && make -j3 ; fi
+    - if [ "${COVERITY_SCAN_BRANCH}" != 1 ]; then mkdir build && cd build && travis_wait 60 cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../product $CMAKECMD_ARGS ../ ; fi
+    - if [ -f CMakeCache.txt ]; then make -j3 ; fi

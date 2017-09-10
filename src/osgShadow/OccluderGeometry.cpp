@@ -77,22 +77,13 @@ public:
         if (transform.getStateSet()) popState();
     }
 
-    void apply(osg::Geode& geode)
+    void apply(osg::Drawable& drawable)
     {
-        if (geode.getStateSet()) pushState(geode.getStateSet());
+        if (drawable.getStateSet()) pushState(drawable.getStateSet());
 
-        for(unsigned int i=0; i<geode.getNumDrawables(); ++i)
-        {
-            osg::Drawable* drawable = geode.getDrawable(i);
+        apply(&drawable);
 
-            if (drawable->getStateSet()) pushState(drawable->getStateSet());
-
-            apply(geode.getDrawable(i));
-
-            if (drawable->getStateSet()) popState();
-        }
-
-        if (geode.getStateSet()) popState();
+        if (drawable.getStateSet()) popState();
     }
 
     void pushState(osg::StateSet* stateset)
@@ -198,24 +189,12 @@ struct TriangleCollector
 
 
     //   bool intersect(const Vec3& v1,const Vec3& v2,const Vec3& v3,float& r)
-    inline void operator () (const osg::Vec3& v1,const osg::Vec3& v2,const osg::Vec3& v3, bool treatVertexDataAsTemporary)
+    inline void operator () (const osg::Vec3& v1,const osg::Vec3& v2,const osg::Vec3& v3)
     {
-        if (treatVertexDataAsTemporary)
-        {
-            // OSG_NOTICE<<"Triangle temp ("<<v1<<") ("<<v2<<") ("<<v3<<")"<<std::endl;
-            _tempoaryTriangleVertices.push_back(v1);
-            _tempoaryTriangleVertices.push_back(v2);
-            _tempoaryTriangleVertices.push_back(v3);
-
-        }
-        else
-        {
-            // OSG_NOTICE<<"Triangle ("<<v1<<") ("<<v2<<") ("<<v3<<")"<<std::endl;
-            _vertexPointers.push_back(&v1);
-            _vertexPointers.push_back(&v2);
-            _vertexPointers.push_back(&v3);
-        }
-
+        // OSG_NOTICE<<"Triangle ("<<v1<<") ("<<v2<<") ("<<v3<<")"<<std::endl;
+        _vertexPointers.push_back(&v1);
+        _vertexPointers.push_back(&v2);
+        _vertexPointers.push_back(&v3);
     }
 
     void copyToLocalData()

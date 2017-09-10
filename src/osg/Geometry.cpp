@@ -133,7 +133,7 @@ void Geometry::configureBufferObjects()
         itr != arrays.end();
         ++itr)
     {
-        osg::Array* array = *itr;
+        osg::Array* array = itr->get();
         if (array->getBinding()==osg::Array::BIND_PER_VERTEX)
         {
             if (array->getNumElements()==numVertices)
@@ -791,6 +791,9 @@ void Geometry::compileGLObjects(RenderInfo& renderInfo) const
             if ((*itr)->getBufferObject()) bufferObjects.insert((*itr)->getBufferObject());
         }
 
+        if (bufferObjects.empty())
+            return; // no buffers, nothing to compile
+
         //osg::ElapsedTime timer;
 
         // now compile any buffer objects that require it.
@@ -808,11 +811,7 @@ void Geometry::compileGLObjects(RenderInfo& renderInfo) const
 
         // OSG_NOTICE<<"Time to compile "<<timer.elapsedTime_m()<<"ms"<<std::endl;
 
-        // unbind the BufferObjects
-        extensions->glBindBuffer(GL_ARRAY_BUFFER_ARB,0);
-        extensions->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER_ARB,0);
-
-        if (state.useVertexArrayObject(_useVertexArrayObject) && !bufferObjects.empty())
+        if (state.useVertexArrayObject(_useVertexArrayObject))
         {
             VertexArrayState* vas = 0;
 
@@ -820,10 +819,16 @@ void Geometry::compileGLObjects(RenderInfo& renderInfo) const
 
             State::SetCurrentVertexArrayStateProxy setVASProxy(state, vas);
 
-            vas->bindVertexArrayObject();
+            state.bindVertexArrayObject(vas);
 
             drawVertexArraysImplementation(renderInfo);
+
+            state.unbindVertexArrayObject();
         }
+
+        // unbind the BufferObjects
+        extensions->glBindBuffer(GL_ARRAY_BUFFER_ARB,0);
+        extensions->glBindBuffer(GL_ELEMENT_ARRAY_BUFFER_ARB,0);
     }
     else
     {
@@ -858,11 +863,15 @@ void Geometry::drawImplementation(RenderInfo& renderInfo) const
 
     drawPrimitivesImplementation(renderInfo);
 
-    if (!state.useVertexArrayObject(_useVertexArrayObject) || state.getCurrentVertexArrayState()->getRequiresSetArrays())
+    bool usingVertexBufferObjects = state.useVertexBufferObject(_supportsVertexBufferObjects && _useVertexBufferObjects);
+    bool usingVertexArrayObjects = usingVertexBufferObjects && state.useVertexArrayObject(_useVertexArrayObject);
+
+    if (usingVertexBufferObjects && !usingVertexArrayObjects)
     {
         // unbind the VBO's if any are used.
-        state.unbindVertexBufferObject();
-        state.unbindElementBufferObject();
+        osg::VertexArrayState* vas = state.getCurrentVertexArrayState();
+        vas->unbindVertexBufferObject();
+        vas->unbindElementBufferObject();
     }
 
     if (checkForGLErrors) state.checkGLErrors("end of Geometry::drawImplementation().");
@@ -1150,8 +1159,6 @@ Geometry* osg::createTexturedQuadGeometry(const Vec3& corner,const Vec3& widthVe
     (*normals)[0].normalize();
     geom->setNormalArray(normals, osg::Array::BIND_OVERALL);
 
-
-#if defined(OSG_GLES1_AVAILABLE) || defined(OSG_GLES2_AVAILABLE)
     DrawElementsUByte* elems = new DrawElementsUByte(PrimitiveSet::TRIANGLES);
     elems->push_back(0);
     elems->push_back(1);
@@ -1161,9 +1168,6 @@ Geometry* osg::createTexturedQuadGeometry(const Vec3& corner,const Vec3& widthVe
     elems->push_back(3);
     elems->push_back(0);
     geom->addPrimitiveSet(elems);
-#else
-    geom->addPrimitiveSet(new DrawArrays(PrimitiveSet::QUADS,0,4));
-#endif
 
     return geom;
 }
